@@ -240,6 +240,29 @@ Entrypoint main = bundle.js
 [3] ./assets/imgs/pig.jpg 80 bytes {0} [built]
 ```
 
+An more complex usage
+
+```js
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+
+            if (process.env.NODE_ENV === 'development') {
+              return '[path][name].[ext]'
+            }
+
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+```
+
 However the image is not displayed properly. This is because missing of a public path
 ![01](docs/imgs/01.png)
 
@@ -385,85 +408,7 @@ Now if run `npm run build`
 
 ##### Optional 3: To export css into a separate file, we need mini-css-extract-plugin plugin
 
-Install
-
-```
-npm install --save-dev mini-css-extract-plugin
-```
-
-For configuration, you will need at least 3 lines in below code:
-
-```js
-const path = require('path')
-const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-
-module.exports = {
-  entry: './src/index.js',
-  output: {
-    filename: 'bundle.js',
-    path: path.resolve(__dirname, './dist'),
-    // Where you uploaded your bundled files. (Relative to server root)
-    publicPath: '/dist/'
-  },
-  mode: 'none',
-  plugins: [new MiniCssExtractPlugin()],
-  // please setup rules for me, how to load files other than Js files
-  module: {
-    // if see .png or .jpg files, use 'file-loader'
-    rules: [
-      { test: /\.(png|jpg)$/i, use: ['file-loader'] },
-      { test: /\.css$/i, use: [MiniCssExtractPlugin.loader, 'css-loader'] }
-    ]
-  }
-}
-```
-
-1. import MiniCssExtractPlugin.
-
-```js
-const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-```
-
-2. Create a MiniCssExtractPlugin instance
-
-```js
-plugins: [new MiniCssExtractPlugin()]
-```
-
-3. Include MiniCssExtractPlugin instance into css rules
-
-```js
-rules: [{ test: /\.css$/i, use: ['css-loader'] }]
-```
-
-4. MiniCssExtractPlugin will NOT inject the generated css file into index.html. so you need to manually add css reference into index.html
-
-```html
-...
-<head>
-  <title>Document</title>
-  <link rel="stylesheet" href="./dist/main.css" />
-</head>
-...
-```
-
-Now when you run `npm run build`. You will see the `main.css` file is generated
-
-```
-Hash: d2c1c1b9605b7951ac26
-Version: webpack 4.42.0
-Time: 256ms
-Built at: 03/22/2020 10:45:53 AM
-    Asset       Size  Chunks             Chunk Names
-bundle.js   5.05 KiB       0  [emitted]  main
- main.css  197 bytes       0  [emitted]  main
-Entrypoint main = main.css bundle.js
-[0] ./src/index.js 161 bytes {0} [built]
-    + 3 hidden modules
-Child mini-css-extract-plugin node_modules/css-loader/dist/cjs.js!src/components/hello-world-button/hello-world-button.css:
-    Entrypoint mini-css-extract-plugin = *
-       2 modules
-```
+See below [4.3. Extracting CSS Into a Separate Bundle With mini-css-extract-plugin](#mini-css-extract-plugin)
 
 ##### 3.5. Handling SASS
 
@@ -706,4 +651,489 @@ module.exports = {
     ]
   }
 }
+```
+
+#### 4. Plugins
+
+Plugins are additional JavaScript libraries that do everything that loader cannot do.
+Plugins can also modify how the bundles themselves are created. For example, uglifyJSPlugin takes the bundle.js, and minimizes the contents to decrease the bundle size.
+
+##### 4.2. Minification Of The Resulting Webpack Bundle
+
+We use `terser-webpack-plugin` for minification. It it recommended nowadays, but still you can use `uglifyJSPlugin` if you prefer
+
+Install
+
+```
+npm i -D terser-webpack-plugin
+```
+
+In webpack.config.js, we need to import it, then create a section `optimization`
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
+
+const devMode = process.env.NODE_ENV !== 'production'
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'none',
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: devMode ? '[name].css' : '[name].[hash].css',
+      chunkFilename: devMode ? '[id].css' : '[id].[hash].css'
+    })
+  ],
+  // for minification
+  optimization: {
+    minimize: true,
+    minimizer: [new TerserPlugin({ sourceMap: true })]
+  },
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      },
+      // if see .png or .jpg files, use 'file-loader'
+      { test: /\.(png|jpg)$/, use: ['file-loader'] },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+Now if you run `npm run build`, the size of the bundle.js is changed from 6kb to 1.77kb
+
+##### 4.3. Extracting CSS Into a Separate Bundle With mini-css-extract-plugin
+
+<a name="mini-css-extract-plugin">Extracting CSS Into a Separate Bundle With mini-css-extract-plugin</a>
+
+Install
+
+```
+npm install --save-dev mini-css-extract-plugin
+```
+
+For configuration, you will need at least 3 lines in below code:
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'none',
+  plugins: [new MiniCssExtractPlugin()],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    // if see .png or .jpg files, use 'file-loader'
+    rules: [
+      { test: /\.(png|jpg)$/i, use: ['file-loader'] },
+      { test: /\.css$/i, use: [MiniCssExtractPlugin.loader, 'css-loader'] }
+    ]
+  }
+}
+```
+
+1. import MiniCssExtractPlugin.
+
+```js
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+```
+
+2. Create a MiniCssExtractPlugin instance
+
+```js
+plugins: [new MiniCssExtractPlugin()]
+```
+
+3. Include MiniCssExtractPlugin instance into css rules
+
+```js
+rules: [{ test: /\.css$/i, use: [MiniCssExtractPlugin.loader, 'css-loader'] }]
+```
+
+4. MiniCssExtractPlugin will NOT inject the generated css file into index.html. so you need to manually add css reference into index.html
+
+```html
+...
+<head>
+  <title>Document</title>
+  <link rel="stylesheet" href="./dist/main.css" />
+</head>
+...
+```
+
+Now when you run `npm run build`. You will see the `main.css` file is generated
+
+```
+Hash: d2c1c1b9605b7951ac26
+Version: webpack 4.42.0
+Time: 256ms
+Built at: 03/22/2020 10:45:53 AM
+    Asset       Size  Chunks             Chunk Names
+bundle.js   5.05 KiB       0  [emitted]  main
+ main.css  197 bytes       0  [emitted]  main
+Entrypoint main = main.css bundle.js
+[0] ./src/index.js 161 bytes {0} [built]
+    + 3 hidden modules
+Child mini-css-extract-plugin node_modules/css-loader/dist/cjs.js!src/components/hello-world-button/hello-world-button.css:
+    Entrypoint mini-css-extract-plugin = *
+       2 modules
+```
+
+A more complicated use case
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+const devMode = process.env.NODE_ENV !== 'production'
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'none',
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: devMode ? '[name].css' : '[name].[hash].css',
+      chunkFilename: devMode ? '[id].css' : '[id].[hash].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    // if see .png or .jpg files, use 'file-loader'
+    rules: [{ test: /\.(png|jpg)$/, use: ['file-loader'] }],
+    rules: [
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+##### 3.6. Using Latest JavaScript Features With Babel 7
+
+Some new JavaScript features are not supported by most of Web Browsers. To solve that, we can use Webpack and `babel-loader` to transpile that into ES5 code
+
+For example we add in some non-function Class Property
+
+```js
+import './hello-world-button.scss'
+
+export default class HelloWorldButton {
+  buttonCssClass = 'hello-world-button'
+  render() {
+    const button = document.createElement('button')
+    button.innerHTML = 'Hello World'
+    button.classList.add(this.buttonCssClass)
+    const body = document.querySelector('body')
+    button.onclick = () => {
+      const p = document.createElement('p')
+      p.innerHTML = 'Hello World'
+      p.classList.add('hello-world-text')
+      body.appendChild(p)
+    }
+    body.appendChild(button)
+  }
+}
+```
+
+##### 4.5. Browser Caching
+
+To update the browser cache, the most common way is to give file a new name, so if the name changed, web browser will download it
+
+To md5 hash the bundle.js is easy, just to put `[contenthash]` tag in `output.filename`. If no code changes, the md5 hash will be the same
+
+```js
+ entry: './src/index.js',
+  output: {
+    filename: 'bundle.[contenthash].js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+```
+
+for css file we can do something similar
+
+```js
+ plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: devMode ? '[name].css' : '[name].[contenthash].css',
+      chunkFilename: devMode ? '[id].css' : '[id].[contenthash].css'
+    })
+  ],
+```
+
+##### 4.6. How To Clean Dist Folder Before Generating New Bundles
+
+To clean dist folder before generating new bundles, we use `CleanWebpackPlugin`
+
+Install
+
+```
+npm i -D clean-webpack-plugin
+```
+
+Usage
+
+```js
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+
+const webpackConfig = {
+  plugins: [
+    /**
+     * All files inside webpack's output.path directory will be removed once, but the
+     * directory itself will not be. If using webpack 4+'s default configuration,
+     * everything under <PROJECT_DIR>/dist/ will be removed.
+     * Use cleanOnceBeforeBuildPatterns to override this behavior.
+     *
+     * During rebuilds, all webpack assets that are not used anymore
+     * will be removed automatically.
+     *
+     * See `Options and Defaults` for information
+     */
+    new CleanWebpackPlugin()
+  ]
+}
+
+module.exports = webpackConfig
+```
+
+Note: if you see any permission error, try to run your ide or console in `admin` mode
+
+To make sure all the sub_folders are deleted no matter how deep the folders are nested, we can use `cleanOnceBeforeBuildPatterns`
+
+```js
+new CleanWebpackPlugin({
+  // all the file patterns you want to remove
+  cleanOnceBeforeBuildPatterns: ['**/*']
+})
+```
+
+In our case, the webpack.config.js is
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+
+const devMode = process.env.NODE_ENV !== 'production'
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.[contenthash].js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'none',
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: devMode ? '[name].css' : '[name].[contenthash].css',
+      chunkFilename: devMode ? '[id].css' : '[id].[contenthash].css'
+    }),
+    new CleanWebpackPlugin()
+  ],
+  // for minification
+  optimization: {
+    minimize: true,
+    minimizer: [new TerserPlugin({ sourceMap: true })]
+  },
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      },
+      // if see .png or .jpg files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+
+            if (process.env.NODE_ENV === 'development') {
+              return '[path][name].[ext]'
+            }
+
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+##### 4.7. Generating HTML Files Automatically During Webpack Build Process
+
+Now the js files and css files name are hashed, but html sources are not updated automatically
+We need `html-webpack-plugin`
+
+Install
+
+```
+npm i -D html-webpack-plugin
+```
+
+Basic Usage
+The plugin will generate an HTML5 file for you that includes all your webpack bundles in the body using script tags. Just add the plugin to your webpack configuration as follows:
+
+```js
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+...
+plugins: [new HtmlWebpackPlugin()]
+....
+```
+
+Now every time when you run `npm run build`, a new html file will be generated, and includes all your webpack bundles in the body using script tags(css, js)
+
+Example:
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Webpack App</title>
+    <link href="/dist/main.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script
+      type="text/javascript"
+      src="/dist/bundle.0edcde0c46ac66fac512.js"
+    ></script>
+  </body>
+</html>
 ```
