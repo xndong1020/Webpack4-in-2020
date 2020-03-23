@@ -16,7 +16,7 @@ module.exports = env => {
       // Where you uploaded your bundled files. (Relative to server root)
       publicPath: '/dist/'
     },
-    mode: 'none',
+    // mode: env.NODE_ENV,
     plugins: [
       new CleanWebpackPlugin({
         // all the file patterns you want to remove
@@ -25,9 +25,9 @@ module.exports = env => {
           path.join(process.cwd(), 'dist/**/*')
         ]
       }),
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
-      }),
+      // new webpack.DefinePlugin({
+      //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+      // }),
       new HtmlWebpackPlugin({
         // Load a custom template
         template: './src/index.html'

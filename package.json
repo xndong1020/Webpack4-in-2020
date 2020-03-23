@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:dev": "webpack --env.NODE_ENV development --progress",
-    "build:prod": "webpack --env.NODE_ENV production"
+    "build:dev": "webpack --env.NODE_ENV development --mode=development --progress",
+    "build:prod": "webpack --env.NODE_ENV production --mode=production"
   },
   "keywords": [],
   "author": "",

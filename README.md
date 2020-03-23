@@ -1222,7 +1222,7 @@ module.exports = env => {
       // Where you uploaded your bundled files. (Relative to server root)
       publicPath: '/dist/'
     },
-    mode: 'none',
+    mode: env.NODE_ENV,
     plugins: [
       new CleanWebpackPlugin({
         // all the file patterns you want to remove
@@ -1350,4 +1350,56 @@ export const addImage = () => {
   const body = document.querySelector('body')
   body.appendChild(img)
 }
+```
+
+#### 5. Production vs Development Builds
+
+In webpack.config.js, there is a property called 'mode'
+You can set 'mode' from cli
+
+```js
+"scripts": {
+  "build:dev": "webpack --env.NODE_ENV development --mode=development --progress",
+  "build:prod": "webpack --env.NODE_ENV production --mode=production"
+}
+```
+
+Or from webpack.config.js `mode` property
+
+```js
+mode: env.NODE_ENV
+```
+
+Note: set mode to 'development' will automatically set `process.env.NODE_ENV` value to 'development' in the built-in webpack.DefinePlugin. set mode to 'production' will automatically set `process.env.NODE_ENV` value to 'production' in the built-in webpack.DefinePlugin
+It is equal to:
+
+```js
+...
+
+new webpack.DefinePlugin({
+  'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+})
+
+...
+```
+
+Also 'mode' will automatically enable a few built-in optimizations
+
+'development' mode file sizes:
+
+```
+             bundle.26f6f473eb74496c5c69.js   7.62 KiB    main  [emitted] [immutable]  main
+ bundle.26f6f473eb74496c5c69.js.LICENSE.txt   1.11 KiB          [emitted]
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+                                 index.html  350 bytes          [emitted]
+                                   main.css  208 bytes    main  [emitted]              main
+```
+
+'production' mode file sizes:
+
+```
+             bundle.5201f02aa34d0619ab23.js   2.47 KiB       0  [emitted] [immutable]  main
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+                                 index.html  371 bytes          [emitted]
+              main.dfc17be0f0f915bf8c9e.css  165 bytes       0  [emitted] [immutable]  main
 ```
