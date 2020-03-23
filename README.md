@@ -1137,3 +1137,217 @@ Example:
   </body>
 </html>
 ```
+
+Note the `/dist/` directory prefix before `main.css` and `bundle.[hash].js`, it is from the `output.publicPath`
+
+We can customize the generated page by specify a template file:
+
+Here is very basic template:
+
+./src/index.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Template</title>
+  </head>
+  <body></body>
+</html>
+```
+
+and we setup webpack.config.js
+
+```js
+new HtmlWebpackPlugin({
+  // Load a custom template
+  template: './src/index.html'
+}),
+```
+
+And the generated html file in ./dist/index.html, the css and js files have been injected
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Template</title>
+    <link href="/dist/main.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script
+      type="text/javascript"
+      src="/dist/bundle.0edcde0c46ac66fac512.js"
+    ></script>
+  </body>
+</html>
+```
+
+##### DefinePlugin and Webpack Environment variables
+
+To pass in env variables from webpack cli, we can do
+
+package.json
+
+```js
+"scripts": {
+  "build:dev": "webpack --env.NODE_ENV development --progress",
+  "build:prod": "webpack --env.NODE_ENV production"
+}
+```
+
+Then the `module.exports` part in `webpack.config.js` needs to be changed to a function
+
+```js
+const path = require('path')
+const webpack = require('webpack')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = env => {
+  // env is the webpack cli options, like 'webpack --env.NODE_ENV production'
+  const devMode = env.NODE_ENV !== 'production'
+  return {
+    entry: './src/index.js',
+    output: {
+      filename: 'bundle.[contenthash].js',
+      path: path.resolve(__dirname, './dist'),
+      // Where you uploaded your bundled files. (Relative to server root)
+      publicPath: '/dist/'
+    },
+    mode: 'none',
+    plugins: [
+      new CleanWebpackPlugin({
+        // all the file patterns you want to remove
+        cleanOnceBeforeBuildPatterns: [
+          '**/*',
+          path.join(process.cwd(), 'dist/**/*')
+        ]
+      }),
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+      }),
+      new HtmlWebpackPlugin({
+        // Load a custom template
+        template: './src/index.html'
+      }),
+      new MiniCssExtractPlugin({
+        // Options similar to the same options in webpackOptions.output
+        // both options are optional
+        filename: devMode ? '[name].css' : '[name].[contenthash].css',
+        chunkFilename: devMode ? '[id].css' : '[id].[contenthash].css'
+      })
+    ],
+    // for minification
+    optimization: {
+      minimize: true,
+      minimizer: [new TerserPlugin({ sourceMap: true })]
+    },
+    // please setup rules for me, how to load files other than Js files
+    module: {
+      rules: [
+        {
+          test: /\.js$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/env'],
+              plugins: ['transform-class-properties']
+            }
+          }
+        },
+        // if see .png or .jp(e)g, gif files, use 'file-loader'
+        {
+          test: /\.(png|jpe?g|gif)$/i,
+          loader: 'file-loader',
+          options: {
+            outputPath: 'images',
+            name(resourcePath, resourceQuery) {
+              // `resourcePath` - `/absolute/path/to/file.js`
+              // `resourceQuery` - `?foo=bar`
+
+              if (process.env.NODE_ENV === 'development') {
+                return '[path][name].[ext]'
+              }
+
+              return '[contenthash].[ext]'
+            }
+          }
+        },
+        {
+          test: /\.css$/,
+          use: [
+            {
+              loader: MiniCssExtractPlugin.loader,
+              options: {
+                hmr: process.env.NODE_ENV === 'development'
+              }
+            },
+            'css-loader'
+          ]
+        },
+        {
+          test: /\.s[ac]ss$/i,
+          use: [
+            {
+              loader: MiniCssExtractPlugin.loader,
+              options: {
+                hmr: process.env.NODE_ENV === 'development'
+              }
+            },
+            // Translates CSS into CommonJS
+            'css-loader',
+            // Compiles Sass to CSS
+            'sass-loader'
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+Notes:
+
+1. Don't forget to import webpack, DefinePlugin is a built-in module of webpack
+2. The `env` parameter is passed in by webpack cli
+3. Now you can retrieve env object by using something like `const devMode = env.NODE_ENV !== 'production'`
+4. Then you can use the DefinePlugin to inject the env variables to process.env, for example
+
+```js
+...
+
+new webpack.DefinePlugin({
+  'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+})
+
+...
+```
+
+Then js codes in you js files will have access to `'process.env.NODE_ENV`
+
+For example:
+./src/add-image.js
+
+```js
+import pig from '../assets/imgs/pig.jpg'
+
+export const addImage = () => {
+  const img = document.createElement('img')
+  img.alt = 'pig'
+  // this process.env.NODE_NODE_EN is injected by 'webpack.DefinePlugin'
+  img.width = process.env.NODE_NODE_EN === 'production' ? 60 : 600
+  img.src = pig
+
+  const body = document.querySelector('body')
+  body.appendChild(img)
+}
+```
