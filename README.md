@@ -1889,11 +1889,10 @@ module.exports = env =>
 ```
 
 webpack.dev.config.js
-(comparing with previous version,
+Comparing with previous version:
 
 1. added a section `devServer`. Also note for css and SASS loader, remember to set `options: { hmr: true }`, otherwise webpack-dev-server won't reload it for you after css/scss files changed and you have to manually refresh the page
 2. add `devtool: 'source-map'` to generate source-map for better debugging
-   )
 
 ```js
 const path = require('path')
@@ -1966,11 +1965,10 @@ module.exports = {
 
 And with the help of `devtool: 'source-map'`, a source-map is generated in memory, and we can see the source code before transpile
 
-![05](C:\Users\Jeremy\Desktop\Webpack4-in-2020\docs\imgs\05.png)
+![05](docs/imgs/05.png)
 
 Without sourcemap, still you can see the transpiled code, but not the original code:
-
-![06](C:\Users\Jeremy\Desktop\Webpack4-in-2020\docs\imgs\06.png)
+![06](docs/imgs/06.png)
 
 webpack.prod.config.js (comparing with previous version, added CleanWebpackPlugin)
 
