@@ -2048,3 +2048,128 @@ Step 3: update your npm script:
   "build:prod": "webpack --config webpack.common.js --env.NODE_ENV=production --mode=production"
 },
 ```
+
+#### 6. Multiple Page Applications
+
+##### 6.3. Code Splitting in Webpack Multiple JS and CSS Bundles
+
+Let's remove the index.js, and create 2 js files: pig.js and rabbit.js
+
+pig.js
+
+```js
+import Header from './components/header/header'
+import HelloWorldButton from './components/hello-world-button/hello-world-button'
+import PigImage from './components/pig-image/pig-image'
+
+const helloWorldButton = new HelloWorldButton()
+const header = new Header()
+const pigImage = new PigImage()
+
+header.render()
+helloWorldButton.render()
+pigImage.render()
+```
+
+rabbit.js
+
+```js
+import Header from './components/header/header'
+import RabbitImage from './components/rabbit-image/rabbit-image'
+
+const header = new Header()
+const rabbitImage = new RabbitImage()
+
+header.render()
+rabbitImage.render()
+```
+
+And we create multiple entry point for webpack.common.js
+
+```js
+...
+
+entry: {
+  pig: './src/pig.js',
+  rabbit: './src/rabbit.js'
+},
+
+...
+```
+
+and we change the `output.filename` from `bundle.js` to `[name].js` in webpack.dev.config.js and `[name].[contenthash].js` webpack.prod.config.js
+
+If we `npm run build:dev` now, the `dist/index.html` file will contain references to 2 js files and 2 css files:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Template</title>
+    <link href="/dist/pig.css" rel="stylesheet" />
+    <link href="/dist/rabbit.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script type="text/javascript" src="/dist/pig.js"></script>
+    <script type="text/javascript" src="/dist/rabbit.js"></script>
+  </body>
+</html>
+```
+
+This is not what we want. We need to server js and css from separate html files
+
+##### 6.4. How To Generate Multiple HTML Files
+
+The solutions is to use multiple `HtmlWebpackPlugin`. Each plugin instance will have separate template, filename(the generated filename in dist folder) and chucks(chunks are groups and created by by the `output.entry`. in our case we have 2 chunks: 'pig' and 'rabbit'.
+
+```js
+entry: {
+  pig: './src/pig.js',
+  rabbit: './src/rabbit.js'
+},
+```
+
+webpack.common.js
+
+```js
+...
+
+new HtmlWebpackPlugin({
+  title: 'Rabbit Page',
+  filename: 'rabbit.html',
+  // Allows you to add only 'rabbit' chunks
+  // meaning it will only contains rabbit.js and rabbit.css
+  chunks: ['rabbit'],
+  // Load a custom template
+  template: './src/rabbit.html'
+}),
+new HtmlWebpackPlugin({
+  title: 'Pig Page',
+  filename: 'pig.html',
+  // Allows you to add only 'pig' chunks
+  // meaning it will only contains pig.js and pig.css
+  chunks: ['pig'],
+  // Load a custom template
+  template: './src/pig.html'
+})
+...
+```
+
+Another trick is, to setup html title dynamically from `HtmlWebpackPlugin`, we need to put a special tag `<title><%= htmlWebpackPlugin.options.title %></title>` in html template file
+
+Example:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= htmlWebpackPlugin.options.title %></title>
+  </head>
+  <body></body>
+</html>
+```

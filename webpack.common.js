@@ -5,7 +5,10 @@ const devConfig = require('./webpack.dev.config')
 const prodConfig = require('./webpack.prod.config')
 
 const common = {
-  entry: './src/index.js',
+  entry: {
+    pig: './src/pig.js',
+    rabbit: './src/rabbit.js'
+  },
   // output.filename will be merged from devConfig or prodConfig
   output: {
     path: path.resolve(__dirname, './dist'),
@@ -18,9 +21,22 @@ const common = {
     //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
     // }),
     new HtmlWebpackPlugin({
+      title: 'Rabbit Page',
+      filename: 'rabbit.html',
+      // Allows you to add only 'rabbit' chunks
+      // meaning it will only contains rabbit.js and rabbit.css
+      chunks: ['rabbit'],
       // Load a custom template
-      template: './src/index.html'
-    })
+      template: './src/rabbit.html'
+    }),
+    new HtmlWebpackPlugin({
+      title: 'Pig Page',
+      filename: 'pig.html',
+      // Allows you to add only 'pig' chunks
+      // meaning it will only contains pig.js and pig.css
+      chunks: ['pig'],
+      // Load a custom template
+      template: './src/pig.html'
   ],
   // file-loader, css-loader and sass-loader will be concatenated from devConfig or prodConfig
   // please setup rules for me, how to load files other than Js files
