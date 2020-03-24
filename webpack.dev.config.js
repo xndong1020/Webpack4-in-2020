@@ -1,9 +1,18 @@
+const path = require('path')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 
 module.exports = {
-  mode: 'development',
   output: {
     filename: 'bundle.js'
+  },
+  mode: 'development',
+  devtool: 'source-map',
+  devServer: {
+    hot: true,
+    // from where to load files for dev server
+    contentBase: path.resolve(__dirname, './dist'),
+    index: 'index.html',
+    port: 9000
   },
   plugins: [
     new MiniCssExtractPlugin({

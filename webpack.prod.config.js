@@ -1,4 +1,6 @@
+const path = require('path')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 
 module.exports = {
   mode: 'production',
@@ -6,6 +8,13 @@ module.exports = {
     filename: 'bundle.[contenthash].js'
   },
   plugins: [
+    new CleanWebpackPlugin({
+      // all the file patterns you want to remove
+      cleanOnceBeforeBuildPatterns: [
+        '**/*',
+        path.join(process.cwd(), 'dist/**/*')
+      ]
+    }),
     new MiniCssExtractPlugin({
       // Options similar to the same options in webpackOptions.output
       // both options are optional

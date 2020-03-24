@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:dev": "webpack --config webpack.common.js --env.NODE_ENV=development --mode=development",
+    "start": "npm run build:dev && webpack-dev-server --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
+    "build:dev": "webpack --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
     "build:prod": "webpack --config webpack.common.js --env.NODE_ENV=production --mode=production"
   },
   "keywords": [],
@@ -26,6 +27,7 @@
     "terser-webpack-plugin": "^2.3.5",
     "webpack": "^4.42.0",
     "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3",
     "webpack-merge": "^4.2.2"
   }
 }

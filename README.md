@@ -1824,3 +1824,229 @@ module.exports = {
   }
 }
 ```
+
+##### 4.4. Faster Development with webpack dev server
+
+Step 1: Install webpack-dev-server
+
+```
+npm i -D webpack-dev-server
+```
+
+Step 2: update your webpack config files.
+Note: webpack-dev-server will NOT generate files, but load files into memory. However I found I have to generate some files first, otherwise the `dist` folder will be empty, and webpack-dev-server does NOT show any contents.
+
+webpack.common.js (comparing with previous version, moved CleanWebpackPlugin to prod config. As dev does NOT have to delete everything under ./dist. It needs to have some files to start with.)
+
+```js
+const path = require('path')
+const merge = require('webpack-merge')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const devConfig = require('./webpack.dev.config')
+const prodConfig = require('./webpack.prod.config')
+
+const common = {
+  entry: './src/index.js',
+  // output.filename will be merged from devConfig or prodConfig
+  output: {
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  // MiniCssExtractPlugin will be concatenated from devConfig or prodConfig
+  plugins: [
+    // new webpack.DefinePlugin({
+    //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+    // }),
+    new HtmlWebpackPlugin({
+      // Load a custom template
+      template: './src/index.html'
+    })
+  ],
+  // file-loader, css-loader and sass-loader will be concatenated from devConfig or prodConfig
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      }
+    ]
+  }
+}
+
+module.exports = env =>
+  env.NODE_ENV === 'development'
+    ? merge(common, devConfig)
+    : merge(common, prodConfig)
+```
+
+webpack.dev.config.js
+(comparing with previous version,
+
+1. added a section `devServer`. Also note for css and SASS loader, remember to set `options: { hmr: true }`, otherwise webpack-dev-server won't reload it for you after css/scss files changed and you have to manually refresh the page
+2. add `devtool: 'source-map'` to generate source-map for better debugging
+   )
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+  output: {
+    filename: 'bundle.js'
+  },
+  mode: 'development',
+  devtool: 'source-map',
+  devServer: {
+    hot: true,
+    // from where to load files for dev server
+    contentBase: path.resolve(__dirname, './dist'),
+    index: 'index.html',
+    port: 9000
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].css',
+      chunkFilename: '[id].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name: '[path][name].[ext]'
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: true
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: true
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+And with the help of `devtool: 'source-map'`, a source-map is generated in memory, and we can see the source code before transpile
+
+![05](C:\Users\Jeremy\Desktop\Webpack4-in-2020\docs\imgs\05.png)
+
+Without sourcemap, still you can see the transpiled code, but not the original code:
+
+![06](C:\Users\Jeremy\Desktop\Webpack4-in-2020\docs\imgs\06.png)
+
+webpack.prod.config.js (comparing with previous version, added CleanWebpackPlugin)
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+
+module.exports = {
+  mode: 'production',
+  output: {
+    filename: 'bundle.[contenthash].js'
+  },
+  plugins: [
+    new CleanWebpackPlugin({
+      // all the file patterns you want to remove
+      cleanOnceBeforeBuildPatterns: [
+        '**/*',
+        path.join(process.cwd(), 'dist/**/*')
+      ]
+    }),
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].[contenthash].css',
+      chunkFilename: '[id].[contenthash].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+Step 3: update your npm script:
+
+```js
+"scripts": {
+  "start": "npm run build:dev && webpack-dev-server --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
+  "build:dev": "webpack --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
+  "build:prod": "webpack --config webpack.common.js --env.NODE_ENV=production --mode=production"
+},
+```

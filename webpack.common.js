@@ -1,6 +1,5 @@
 const path = require('path')
 const merge = require('webpack-merge')
-const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const devConfig = require('./webpack.dev.config')
 const prodConfig = require('./webpack.prod.config')
@@ -15,13 +14,6 @@ const common = {
   },
   // MiniCssExtractPlugin will be concatenated from devConfig or prodConfig
   plugins: [
-    new CleanWebpackPlugin({
-      // all the file patterns you want to remove
-      cleanOnceBeforeBuildPatterns: [
-        '**/*',
-        path.join(process.cwd(), 'dist/**/*')
-      ]
-    }),
     // new webpack.DefinePlugin({
     //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
     // }),
