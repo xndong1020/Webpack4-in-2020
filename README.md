@@ -1383,7 +1383,7 @@ new webpack.DefinePlugin({
 ...
 ```
 
-Also 'mode' will automatically enable a few built-in optimizations
+Also 'mode' will automatically enable a few built-in optimizations. For example, `TerserPlugin` is enabled by default
 
 'development' mode file sizes:
 
@@ -1402,4 +1402,425 @@ images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
 images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
                                  index.html  371 bytes          [emitted]
               main.dfc17be0f0f915bf8c9e.css  165 bytes       0  [emitted] [immutable]  main
+```
+
+##### 4.5. Production vs Development Builds
+
+Now we can create 2 separate webpack config files, 1 for dev and 1 for prod
+
+webpack.dev.config (removed TerserPlugin, hard code mode to 'development', no hashed name for css and bundle.js)
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'development',
+  plugins: [
+    new CleanWebpackPlugin({
+      // all the file patterns you want to remove
+      cleanOnceBeforeBuildPatterns: [
+        '**/*',
+        path.join(process.cwd(), 'dist/**/*')
+      ]
+    }),
+    // new webpack.DefinePlugin({
+    //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+    // }),
+    new HtmlWebpackPlugin({
+      // Load a custom template
+      template: './src/index.html'
+    }),
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].css',
+      chunkFilename: '[id].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      },
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+
+            if (process.env.NODE_ENV === 'development') {
+              return '[path][name].[ext]'
+            }
+
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+webpack.dev.config (removed TerserPlugin because it is enabled by default, hard code mode to 'production', always hash name for css and bundle.js)
+
+```js
+const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.[contenthash].js',
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  mode: 'production',
+  plugins: [
+    new CleanWebpackPlugin({
+      // all the file patterns you want to remove
+      cleanOnceBeforeBuildPatterns: [
+        '**/*',
+        path.join(process.cwd(), 'dist/**/*')
+      ]
+    }),
+    // new webpack.DefinePlugin({
+    //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+    // }),
+    new HtmlWebpackPlugin({
+      // Load a custom template
+      template: './src/index.html'
+    }),
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].[contenthash].css',
+      chunkFilename: '[id].[contenthash].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      },
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+
+            if (process.env.NODE_ENV === 'development') {
+              return '[path][name].[ext]'
+            }
+
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: process.env.NODE_ENV === 'development'
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+And we can have separate npm scripts for dev and prod:
+
+```js
+"scripts": {
+  "build:dev": "webpack --config webpack.dev.config.js --mode=development --progress",
+  "build:prod": "webpack --config webpack.prod.config.js --mode=production"
+}
+```
+
+And we can use `webpack-merge` to reuse some common settings
+Install webpack-merge
+
+```
+npm i -D webpack-merge
+```
+
+npm scripts need to have env.NODE
+
+```js
+...
+"scripts": {
+  "build:dev": "webpack --config webpack.common.js --env.NODE_ENV=development --mode=development",
+  "build:prod": "webpack --config webpack.common.js --env.NODE_ENV=production --mode=production"
+},
+...
+```
+
+./webpack.common.js
+
+```js
+const path = require('path')
+const merge = require('webpack-merge')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const devConfig = require('./webpack.dev.config')
+const prodConfig = require('./webpack.prod.config')
+
+const common = {
+  entry: './src/index.js',
+  // output.filename will be merged from devConfig or prodConfig
+  output: {
+    path: path.resolve(__dirname, './dist'),
+    // Where you uploaded your bundled files. (Relative to server root)
+    publicPath: '/dist/'
+  },
+  // MiniCssExtractPlugin will be concatenated from devConfig or prodConfig
+  plugins: [
+    new CleanWebpackPlugin({
+      // all the file patterns you want to remove
+      cleanOnceBeforeBuildPatterns: [
+        '**/*',
+        path.join(process.cwd(), 'dist/**/*')
+      ]
+    }),
+    // new webpack.DefinePlugin({
+    //   'process.env.NODE_ENV': JSON.stringify(env.NODE_ENV)
+    // }),
+    new HtmlWebpackPlugin({
+      // Load a custom template
+      template: './src/index.html'
+    })
+  ],
+  // file-loader, css-loader and sass-loader will be concatenated from devConfig or prodConfig
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/env'],
+            plugins: ['transform-class-properties']
+          }
+        }
+      }
+    ]
+  }
+}
+
+module.exports = env =>
+  env.NODE_ENV === 'development'
+    ? merge(common, devConfig)
+    : merge(common, prodConfig)
+```
+
+Notes: webpack-merge is smart enough to merge object(like output.filename) and arrays(like loaders and plugins).
+
+./webpack.dev.config.js
+
+```js
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+  mode: 'development',
+  output: {
+    filename: 'bundle.js'
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].css',
+      chunkFilename: '[id].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name: '[path][name].[ext]'
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: true
+            }
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              hmr: true
+            }
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
+```
+
+./webpack.prod.config
+
+```js
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+  mode: 'production',
+  output: {
+    filename: 'bundle.[contenthash].js'
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: '[name].[contenthash].css',
+      chunkFilename: '[id].[contenthash].css'
+    })
+  ],
+  // please setup rules for me, how to load files other than Js files
+  module: {
+    rules: [
+      // if see .png or .jp(e)g, gif files, use 'file-loader'
+      {
+        test: /\.(png|jpe?g|gif)$/i,
+        loader: 'file-loader',
+        options: {
+          outputPath: 'images',
+          name(resourcePath, resourceQuery) {
+            // `resourcePath` - `/absolute/path/to/file.js`
+            // `resourceQuery` - `?foo=bar`
+            return '[contenthash].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
+          'css-loader'
+        ]
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
+          // Translates CSS into CommonJS
+          'css-loader',
+          // Compiles Sass to CSS
+          'sass-loader'
+        ]
+      }
+    ]
+  }
+}
 ```
