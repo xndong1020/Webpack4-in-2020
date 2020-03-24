@@ -22,6 +22,19 @@ module.exports = {
       chunkFilename: '[id].[contenthash].css'
     })
   ],
+  optimization: {
+    splitChunks: {
+      minSize: 1024 * 5, // 5k
+      // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+      cacheGroups: {
+        commons: {
+          name: 'commons',
+          chunks: 'initial',
+          minChunks: 2
+        }
+      }
+    }
+  },
   // please setup rules for me, how to load files other than Js files
   module: {
     rules: [

@@ -2173,3 +2173,427 @@ Example:
   <body></body>
 </html>
 ```
+
+#####
+
+Now the dev build size is:
+
+```
+                   Asset       Size  Chunks                   Chunk Names
+   images/assets/imgs/pig.jpg   62.5 KiB          [emitted]
+images/assets/imgs/rabbit.jpg   60.5 KiB          [emitted]
+                      pig.css  285 bytes     pig  [emitted]        pig
+                  pig.css.map  644 bytes     pig  [emitted] [dev]  pig
+                     pig.html  323 bytes          [emitted]
+                       pig.js    104 KiB     pig  [emitted]        pig
+                   pig.js.map    111 KiB     pig  [emitted] [dev]  pig
+                   rabbit.css  105 bytes  rabbit  [emitted]        rabbit
+               rabbit.css.map  322 bytes  rabbit  [emitted] [dev]  rabbit
+                  rabbit.html  332 bytes          [emitted]
+                    rabbit.js    100 KiB  rabbit  [emitted]        rabbit
+                rabbit.js.map    109 KiB  rabbit  [emitted] [dev]  rabbit
+```
+
+The size of pig.js and rabbit.js is around 100k
+
+However if we import some 3-party library like lodash
+
+```
+                       Asset       Size  Chunks                   Chunk Names
+   images/assets/imgs/pig.jpg   62.5 KiB          [emitted]
+images/assets/imgs/rabbit.jpg   60.5 KiB          [emitted]
+                      pig.css  285 bytes     pig  [emitted]        pig
+                  pig.css.map  644 bytes     pig  [emitted] [dev]  pig
+                     pig.html  323 bytes          [emitted]
+                       pig.js    932 KiB     pig  [emitted]        pig
+                   pig.js.map   1.08 MiB     pig  [emitted] [dev]  pig
+                   rabbit.css  105 bytes  rabbit  [emitted]        rabbit
+               rabbit.css.map  322 bytes  rabbit  [emitted] [dev]  rabbit
+                  rabbit.html  332 bytes          [emitted]
+                    rabbit.js    929 KiB  rabbit  [emitted]        rabbit
+                rabbit.js.map   1.08 MiB  rabbit  [emitted] [dev]  rabbit
+```
+
+The size of pig.js and rabbit.js becomes 900kb+
+
+When using production build, the size is:
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       0  [emitted] [immutable]  pig
+                pig.6445aeacf450d740a7e2.js   2.92 KiB       0  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       1  [emitted] [immutable]  rabbit
+             rabbit.f6b59a923734b391115c.js   2.18 KiB       1  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+Entrypoint pig = pig.0008d222bed6ef3250cf.css pig.6445aeacf450d740a7e2.js
+Entrypoint rabbit = rabbit.7644d84e53bd3ae91f0d.css rabbit.f6b59a923734b391115c.js
+```
+
+After importing lodash
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       0  [emitted] [immutable]  pig
+                pig.9f16a2a7f5c6b3831a20.js     74 KiB       0  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+             rabbit.55f85d26c8c453d355e0.js   73.3 KiB       1  [emitted] [immutable]  rabbit
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       1  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+Entrypoint pig = pig.0008d222bed6ef3250cf.css pig.9f16a2a7f5c6b3831a20.js
+Entrypoint rabbit = rabbit.7644d84e53bd3ae91f0d.css rabbit.55f85d26c8c453d355e0.js
+```
+
+This mean every time when user open up our page, if content changed(hash changed) then user has to download the embedded lodash once again.
+
+The solution is: bundle 3-party libraries into a separate bundle, if it is cached then user don't need to download it again
+
+add below section in webpack.prod.config.js
+
+```js
+...
+
+optimization: {
+  splitChunks: {
+    // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+    chunks: 'all'
+    // chunks(chunk) {
+    //   console.log('chunk', chunk.name) // pig, rabbit
+    //   // exclude `my-excluded-chunk`
+    //   return chunk.name !== 'my-excluded-chunk'
+    // }
+  }
+},
+
+...
+```
+
+And we can see the build result that, lodash has been put into a separate file `vendors~pig~rabbit.6319f0ef0b51e2d177e6.js`
+
+```
+Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       1  [emitted] [immutable]  pig
+                pig.c1abda09889b075cb12f.js   3.53 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+             rabbit.626f1f1a8c214560f374.js    2.8 KiB       2  [emitted] [immutable]  rabbit
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       2  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+ vendors~pig~rabbit.6319f0ef0b51e2d177e6.js   71.1 KiB       0  [emitted] [immutable]  vendors~pig~rabbit
+Entrypoint pig = vendors~pig~rabbit.6319f0ef0b51e2d177e6.js pig.0008d222bed6ef3250cf.css pig.c1abda09889b075cb12f.js
+Entrypoint rabbit = vendors~pig~rabbit.6319f0ef0b51e2d177e6.js rabbit.7644d84e53bd3ae91f0d.css rabbit.626f1f1a8c214560f374.js
+```
+
+You can also specify the name:
+
+```js
+...
+
+optimization: {
+  splitChunks: {
+    // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+    chunks: 'all',
+    name: 'vendor'
+    // chunks(chunk) {
+    //   console.log('chunk', chunk.name) // pig, rabbit
+    //   // exclude `my-excluded-chunk`
+    //   return chunk.name !== 'my-excluded-chunk'
+    // }
+  }
+}
+
+...
+```
+
+And the generated name becomes `vendor.6319f0ef0b51e2d177e6.js`
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       1  [emitted] [immutable]  pig
+                pig.c1abda09889b075cb12f.js   3.53 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+             rabbit.626f1f1a8c214560f374.js    2.8 KiB       2  [emitted] [immutable]  rabbit
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       2  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+             vendor.6319f0ef0b51e2d177e6.js   71.1 KiB       0  [emitted] [immutable]  vendor
+```
+
+It is recommended to set splitChunks.name to false for production builds so that it doesn't change names unnecessarily.
+
+```
+optimization: {
+  splitChunks: {
+    // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+    chunks: 'all',
+    name: false
+  }
+}
+```
+
+When `splitChunks.name` set to false, the name of vendor js file won't change so it will read cached version from user's browser.
+
+```
+ Asset       Size  Chunks                         Chunk Names
+                  0.6319f0ef0b51e2d177e6.js   71.1 KiB       0  [emitted] [immutable]
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       1  [emitted] [immutable]  pig
+                pig.c1abda09889b075cb12f.js   3.53 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+             rabbit.626f1f1a8c214560f374.js    2.8 KiB       2  [emitted] [immutable]  rabbit
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       2  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+Entrypoint pig = 0.6319f0ef0b51e2d177e6.js pig.0008d222bed6ef3250cf.css pig.c1abda09889b075cb12f.js
+Entrypoint rabbit = 0.6319f0ef0b51e2d177e6.js rabbit.7644d84e53bd3ae91f0d.css rabbit.626f1f1a8c214560f374.js
+```
+
+if we change some code inside './src/components/pig-image/pig-image.js' and './src/components/rabbit-image/rabbit-image.js', you can see the generated js file for rabbit.js and pig.js have a different hash code, but all other files are still having the same name as before.
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+                  0.6319f0ef0b51e2d177e6.js   71.1 KiB       0  [emitted] [immutable]
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       1  [emitted] [immutable]  pig
+                pig.f4a1569145c7635d8bbc.js   3.54 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       2  [emitted] [immutable]  rabbit
+             rabbit.c9db3b1dcb44315e1777.js    2.8 KiB       2  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+Entrypoint pig = 0.6319f0ef0b51e2d177e6.js pig.0008d222bed6ef3250cf.css pig.f4a1569145c7635d8bbc.js
+Entrypoint rabbit = 0.6319f0ef0b51e2d177e6.js rabbit.7644d84e53bd3ae91f0d.css rabbit.c9db3b1dcb44315e1777.js
+```
+
+Todo: But the problem is, if set name to true, then we don't know the chunk name of the vendors' bundled file, and we can't import it into generated html files
+
+Temporary solution 1: Create a commons chunk, which includes all code shared between entry points.
+
+```js
+...
+optimization: {
+  splitChunks: {
+    // 'Create a commons chunk, which includes all code shared between entry points.
+    cacheGroups: {
+      commons: {
+        name: 'commons',
+        chunks: 'initial',
+        minChunks: 2
+      }
+    }
+  }
+},
+...
+```
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+                 0.3c0b2dcb4b032c97b89a.css   16 bytes       0  [emitted] [immutable]  commons
+            commons.c2a6db7b91a4c2443a2e.js   71.7 KiB       0  [emitted] [immutable]  commons
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.68cb67d5e4c91aae7205.css  184 bytes       1  [emitted] [immutable]  pig
+                pig.a9e33275a689b40e7e0f.js   2.95 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  512 bytes          [emitted]
+             rabbit.4732a83364e189d80287.js   2.21 KiB       2  [emitted] [immutable]  rabbit
+            rabbit.bee6e0222d441a44c348.css   37 bytes       2  [emitted] [immutable]  rabbit
+                                rabbit.html  521 bytes          [emitted]
+Entrypoint pig = 0.3c0b2dcb4b032c97b89a.css commons.c2a6db7b91a4c2443a2e.js pig.68cb67d5e4c91aae7205.css pig.a9e33275a689b40e7e0f.js
+Entrypoint rabbit = 0.3c0b2dcb4b032c97b89a.css commons.c2a6db7b91a4c2443a2e.js rabbit.bee6e0222d441a44c348.css rabbit.4732a83364e189d80287.js
+```
+
+And in webpack.common.js, we need to include this 'common' chunk
+
+```js
+...
+ new HtmlWebpackPlugin({
+  title: 'Rabbit Page',
+  filename: 'rabbit.html',
+  // Allows you to add only 'rabbit' chunks
+  // meaning it will only contains rabbit.js and rabbit.css
+  chunks: ['rabbit', 'commons'],
+  // Load a custom template
+  template: './src/rabbit.html'
+}),
+new HtmlWebpackPlugin({
+  title: 'Pig Page',
+  filename: 'pig.html',
+  // Allows you to add only 'pig' chunks
+  // meaning it will only contains pig.js and pig.css
+  chunks: ['pig', 'commons'],
+  // Load a custom template
+  template: './src/pig.html'
+})
+...
+```
+
+And when you check the generated html files:
+
+dist/pig.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pig Page</title>
+    <link href="/dist/0.3c0b2dcb4b032c97b89a.css" rel="stylesheet" />
+    <link href="/dist/pig.68cb67d5e4c91aae7205.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script
+      type="text/javascript"
+      src="/dist/commons.c2a6db7b91a4c2443a2e.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="/dist/pig.a9e33275a689b40e7e0f.js"
+    ></script>
+  </body>
+</html>
+```
+
+dist/rabbit.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rabbit Page</title>
+    <link href="/dist/0.3c0b2dcb4b032c97b89a.css" rel="stylesheet" />
+    <link href="/dist/rabbit.bee6e0222d441a44c348.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script
+      type="text/javascript"
+      src="/dist/commons.c2a6db7b91a4c2443a2e.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="/dist/rabbit.4732a83364e189d80287.js"
+    ></script>
+  </body>
+</html>
+```
+
+Form above html files, you can see the common css file: `dist/0.3c0b2dcb4b032c97b89a.css` and common js file `dist/commons.c2a6db7b91a4c2443a2e.js`
+
+The common css file is from the common part of `src/pig.js` and `src/rabbit.js`, which is the `header.js` component
+`dist/0.3c0b2dcb4b032c97b89a.css`
+
+```css
+h1 {
+  color: gray;
+}
+```
+
+is from `src/components//header/header.scss`
+
+```scss
+h1 {
+  color: gray;
+}
+```
+
+Split Chunks: Example 2
+Create a vendors chunk, which includes all code from node_modules in the whole application. This may not be a good solution as it may contains dev dependencies.
+
+```js
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all'
+        }
+      }
+    }
+  }
+}
+```
+
+Split Chunks: Example 3
+Create a custom vendor chunk, which contains certain node_modules packages matched by RegExp.
+
+```js
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+          name: 'vendor',
+          chunks: 'all'
+        }
+      }
+    }
+  }
+}
+```
+
+Now if we install `react`, and import it into `src/rabbit.js` and `src/pig.js`, then run `npm run build:prod`, you can see splitChunk plugin is not working, the react is embedded into `dist/pig.js` and `dist/rabbit.js`. This is because by default splitChunk plugin does NOT work if the vendor package size is less than 30kb, and the size of `react` is around 8.3k
+
+```
+                                     Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       0  [emitted] [immutable]  pig
+                pig.5c64cc340e648a926caf.js   10.2 KiB       0  [emitted] [immutable]  pig
+                                   pig.html  365 bytes          [emitted]
+             rabbit.32ebb26e0d23ae97cc4d.js   9.49 KiB       1  [emitted] [immutable]  rabbit
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       1  [emitted] [immutable]  rabbit
+                                rabbit.html  374 bytes          [emitted]
+Entrypoint pig = pig.0008d222bed6ef3250cf.css pig.5c64cc340e648a926caf.js
+```
+
+The solution is to change the splitChunk plugin minSize threshold
+
+```js
+splitChunks: {
+  minSize: 1024 * 5, // 5k
+  // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+  cacheGroups: {
+    commons: {
+      name: 'commons',
+      chunks: 'initial',
+      minChunks: 2
+    }
+  }
+}
+```
+
+now if you check the build, `react` is extracted to `commons.fd473ebb81e8f0c40dc3.js`
+
+```
+ Asset       Size  Chunks                         Chunk Names
+                 0.3c0b2dcb4b032c97b89a.css   16 bytes       0  [emitted] [immutable]  commons
+            commons.fd473ebb81e8f0c40dc3.js   7.95 KiB       0  [emitted] [immutable]  commons
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+                pig.6058780ad519d5bcf3f7.js   2.92 KiB       1  [emitted] [immutable]  pig
+               pig.68cb67d5e4c91aae7205.css  184 bytes       1  [emitted] [immutable]  pig
+                                   pig.html  512 bytes          [emitted]
+             rabbit.7c5083368a352edd9094.js   2.18 KiB       2  [emitted] [immutable]  rabbit
+            rabbit.bee6e0222d441a44c348.css   37 bytes       2  [emitted] [immutable]  rabbit
+                                rabbit.html  521 bytes          [emitted]
+Entrypoint pig = 0.3c0b2dcb4b032c97b89a.css commons.fd473ebb81e8f0c40dc3.js pig.68cb67d5e4c91aae7205.css pig.6058780ad519d5bcf3f7.js
+Entrypoint rabbit = 0.3c0b2dcb4b032c97b89a.css commons.fd473ebb81e8f0c40dc3.js rabbit.bee6e0222d441a44c348.css rabbit.7c5083368a352edd9094.js
+```
+
+##### 4.7. How To Setup Development Environment For Multiple Page Application
+

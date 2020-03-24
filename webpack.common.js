@@ -25,7 +25,7 @@ const common = {
       filename: 'rabbit.html',
       // Allows you to add only 'rabbit' chunks
       // meaning it will only contains rabbit.js and rabbit.css
-      chunks: ['rabbit'],
+      chunks: ['rabbit', 'commons'],
       // Load a custom template
       template: './src/rabbit.html'
     }),
@@ -34,9 +34,10 @@ const common = {
       filename: 'pig.html',
       // Allows you to add only 'pig' chunks
       // meaning it will only contains pig.js and pig.css
-      chunks: ['pig'],
+      chunks: ['pig', 'commons'],
       // Load a custom template
       template: './src/pig.html'
+    })
   ],
   // file-loader, css-loader and sass-loader will be concatenated from devConfig or prodConfig
   // please setup rules for me, how to load files other than Js files
