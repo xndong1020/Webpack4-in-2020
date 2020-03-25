@@ -2773,4 +2773,74 @@ Entrypoint pig = 0.3c0b2dcb4b032c97b89a.css commons.031644f09d158e118bcd.js vend
 Entrypoint rabbit = 0.3c0b2dcb4b032c97b89a.css commons.031644f09d158e118bcd.js rabbit.bee6e0222d441a44c348.css rabbit.f5cb8f468f2098a164b7.js
 ```
 
+And don't forget to include this chunk 'vendors~pig' for 'pig' page
 
+webpack.common.js
+
+```js
+new HtmlWebpackPlugin({
+  title: 'Pig Page',
+  filename: 'pig.html',
+  // Allows you to add only 'pig' chunks
+  // meaning it will only contains pig.js and pig.css
+  chunks: ['pig', 'commons', 'vendors~pig'],
+  // Load a custom template
+  template: './src/pig.html'
+})
+```
+
+#### 10. Integration with Bootstrap
+
+There are 2 ways to integrate Bootstrap
+
+1. Using the pre-compiled css file
+
+Install bootstrap, jquery, popper.js
+then import like below:
+
+```js
+import 'bootstrap'
+import 'bootstrap/dist/css/bootstrap.min.css'
+```
+
+2. Using the scss file, for some advanced feature you need to use `postcss-loader` and some plugins
+
+Install `postcss-loader` and `precss` plugin and `autoprefixer` plugin
+Then include it in the scss file loader
+
+```js
+{
+  test: /\.s[ac]ss$/i,
+  use: [
+    {
+      loader: MiniCssExtractPlugin.loader
+    },
+    // Translates CSS into CommonJS
+    'css-loader',
+    {
+      loader: 'postcss-loader',
+      options: {
+        plugins: function() {
+          return [require('precss'), require('autoprefixer')]
+        }
+      }
+    },
+    // Compiles Sass to CSS
+    'sass-loader'
+  ]
+}
+```
+
+At last, import the bootstrap scss file
+./src/pig.scss
+
+```scss
+@import '~bootstrap/scss/bootstrap';
+
+.my-dropdown {
+  float: right;
+  position: relative;
+  top: 7px;
+  right: 40px;
+}
+```

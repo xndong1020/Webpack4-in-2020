@@ -68,6 +68,14 @@ module.exports = {
           },
           // Translates CSS into CommonJS
           'css-loader',
+          {
+            loader: 'postcss-loader',
+            options: {
+              plugins: function() {
+                return [require('precss'), require('autoprefixer')]
+              }
+            }
+          },
           // Compiles Sass to CSS
           'sass-loader'
         ]

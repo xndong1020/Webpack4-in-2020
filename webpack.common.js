@@ -34,7 +34,7 @@ const common = {
       filename: 'pig.html',
       // Allows you to add only 'pig' chunks
       // meaning it will only contains pig.js and pig.css
-      chunks: ['pig', 'commons'],
+      chunks: ['pig', 'commons', 'vendors~pig'],
       // Load a custom template
       template: './src/pig.html'
     })
