@@ -13,7 +13,7 @@ const common = {
   output: {
     path: path.resolve(__dirname, './dist'),
     // Where you uploaded your bundled files. (Relative to server root)
-    publicPath: '/dist/'
+    publicPath: '/static/'
   },
   // MiniCssExtractPlugin will be concatenated from devConfig or prodConfig
   plugins: [

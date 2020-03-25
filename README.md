@@ -2595,5 +2595,113 @@ Entrypoint pig = 0.3c0b2dcb4b032c97b89a.css commons.fd473ebb81e8f0c40dc3.js pig.
 Entrypoint rabbit = 0.3c0b2dcb4b032c97b89a.css commons.fd473ebb81e8f0c40dc3.js rabbit.bee6e0222d441a44c348.css rabbit.7c5083368a352edd9094.js
 ```
 
-##### 4.7. How To Setup Development Environment For Multiple Page Application
+#### 7. Webpack Integration With Node And Express
 
+##### 7.4. Serving HTML Pages via Express
+
+We firstly create a ./src/server.js, to use express to server html files
+
+```js
+const express = require('express')
+const app = express()
+const path = require('path')
+const fs = require('fs')
+
+app.get('/pig/', function(req, res) {
+  const pathToHtmlFile = path.resolve(__dirname, '../dist/pig.html')
+  const contentFromHtmlFile = fs.readFileSync(pathToHtmlFile, 'utf-8')
+  res.send(contentFromHtmlFile)
+})
+app.get('/rabbit/', function(req, res) {
+  const pathToHtmlFile = path.resolve(__dirname, '../dist/rabbit.html')
+  const contentFromHtmlFile = fs.readFileSync(pathToHtmlFile, 'utf-8')
+  res.send(contentFromHtmlFile)
+})
+
+app.listen(3000, function() {
+  console.log('Application is running on http://localhost:3000')
+})
+```
+
+then we create 2 npm scripts for run it:
+
+```js
+"scripts": {
+  "start": "node ./src/server.js",
+  "start:dev": "nodemon ./src/server.js",
+  "dev": "npm run build:dev && webpack-dev-server --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
+  "build:dev": "webpack --config webpack.common.js --env.NODE_ENV=development --mode=development --open --hot",
+  "build:prod": "webpack --config webpack.common.js --env.NODE_ENV=production --mode=production"
+}
+```
+
+Now if you run it, html file is loaded, however you will get below error in console:
+
+```
+Refused to apply style from 'http://localhost:3000/dist/0.3c0b2dcb4b032c97b89a.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled.
+localhost/:1 Refused to apply style from 'http://localhost:3000/dist/pig.68cb67d5e4c91aae7205.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled.
+2localhost/:8 GET http://localhost:3000/dist/commons.fd473ebb81e8f0c40dc3.js net::ERR_ABORTED 404 (Not Found)
+```
+
+Go to Chrome Devtools Network tab, you will see it is because the css and js files are not loaded.
+![7](docs/imgs/07.png)
+
+##### 7.5. Handling JS and CSS via Express
+
+To server css and js files, add below line to server.js
+
+```js
+// to server css and js files
+app.use('/dist', express.static(path.resolve(__dirname, '../dist')))
+```
+
+If you don't like to use `dist` as static folder name, change it to whatever you like. In our case we change it to `static`
+
+```js
+// to server css and js files
+app.use('/static', express.static(path.resolve(__dirname, '../dist')))
+```
+
+This means css files are severed from `/static/<filename>.css` and js files are severed from `/static/<filename>.js`, and if browser visit this route, the acutal contents are severed from `dist` folder
+
+However now the html file are still using the old link for css and js files. For example `/dist/0.3c0b2dcb4b032c97b89a.css` and `/dist/rabbit.7c5083368a352edd9094.js`. We need to update the url to `/static/0.3c0b2dcb4b032c97b89a.css` and `/static/rabbit.7c5083368a352edd9094.js`.
+
+This can be done by simply using webpack to change the output path
+
+webpack.common.js
+
+```js
+output: {
+  path: path.resolve(__dirname, './dist'),
+  // Where you uploaded your bundled files. (Relative to server root)
+  publicPath: '/static/'
+}
+```
+
+Now the js and css files are pointing to correct url
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pig Page</title>
+    <link href="/static/0.3c0b2dcb4b032c97b89a.css" rel="stylesheet" />
+    <link href="/static/pig.68cb67d5e4c91aae7205.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <script
+      type="text/javascript"
+      src="/static/commons.fd473ebb81e8f0c40dc3.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="/static/pig.e0dc874a6b13ade4522f.js"
+    ></script>
+  </body>
+</html>
+```
+
+#### 8. Integration with jQuery
