@@ -25,7 +25,7 @@ module.exports = {
   optimization: {
     splitChunks: {
       minSize: 1024 * 5, // 5k
-      // 'all' can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+      chunks: 'all', // can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
       cacheGroups: {
         commons: {
           name: 'commons',

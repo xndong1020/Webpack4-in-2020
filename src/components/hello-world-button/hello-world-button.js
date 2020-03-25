@@ -1,4 +1,5 @@
 import './hello-world-button.scss'
+import $ from 'jquery'
 
 export default class HelloWorldButton {
   buttonCssClass = 'hello-world-button'

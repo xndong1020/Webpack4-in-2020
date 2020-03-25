@@ -2705,3 +2705,72 @@ Now the js and css files are pointing to correct url
 ```
 
 #### 8. Integration with jQuery
+
+install
+
+```
+npm i jquery
+```
+
+import
+
+```
+import $ from 'jquery'
+```
+
+Note: if we use jquery in 1 component, then it is not a 'common' dependency, `splitChunks` will not include it into 'common' js file. If you don't use the `chunks` property then the jquery will be embedded into the component js file whichever is using it.
+
+In below example, size of the `pig.c03b250eeebb4271ef6a.js` is significantly increased to 96.7kb, as jquery is only used by it and it is embedded into `pig.c03b250eeebb4271ef6a.js`
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.0008d222bed6ef3250cf.css  200 bytes       0  [emitted] [immutable]  pig
+                pig.c03b250eeebb4271ef6a.js   96.7 KiB       0  [emitted] [immutable]  pig
+                                   pig.html  369 bytes          [emitted]
+            rabbit.7644d84e53bd3ae91f0d.css   53 bytes       1  [emitted] [immutable]  rabbit
+             rabbit.d3fe6bb7c93a06d79097.js   9.49 KiB       1  [emitted] [immutable]  rabbit
+                                rabbit.html  378 bytes          [emitted]
+Entrypoint pig = pig.0008d222bed6ef3250cf.css pig.c03b250eeebb4271ef6a.js
+Entrypoint rabbit = rabbit.7644d84e53bd3ae91f0d.css rabbit.d3fe6bb7c93a06d79097.js
+```
+
+If you want to split it into a separate js file, one solution is to enable `chunks: 'all'`
+
+```js
+optimization: {
+  splitChunks: {
+    minSize: 1024 * 5, // 5k
+    chunks: 'all', // can be particularly powerful, because it means that chunks can be shared even between async and non-async chunks.
+    cacheGroups: {
+      commons: {
+        name: 'commons',
+        chunks: 'initial',
+        minChunks: 2
+      }
+    }
+  }
+},
+```
+
+In below example, `vendors~pig.72211514c8daf9d89b99.js` includes all 3td party packages used ONLY by `pig.js`
+
+```
+                                      Asset       Size  Chunks                         Chunk Names
+                 0.3c0b2dcb4b032c97b89a.css   16 bytes       0  [emitted] [immutable]  commons
+            commons.031644f09d158e118bcd.js   7.95 KiB       0  [emitted] [immutable]  commons
+images/2fbcb72217d6eb574dadea2e0268c5d3.jpg   62.5 KiB          [emitted]
+images/7ab20633c1fed5ad70582a45b930dbf8.jpg   60.5 KiB          [emitted]
+               pig.68cb67d5e4c91aae7205.css  184 bytes       1  [emitted] [immutable]  pig
+                pig.c736e8647a5fd2b830dd.js   2.86 KiB       1  [emitted] [immutable]  pig
+                                   pig.html  520 bytes          [emitted]
+            rabbit.bee6e0222d441a44c348.css   37 bytes       2  [emitted] [immutable]  rabbit
+             rabbit.f5cb8f468f2098a164b7.js   2.18 KiB       2  [emitted] [immutable]  rabbit
+                                rabbit.html  529 bytes          [emitted]
+        vendors~pig.72211514c8daf9d89b99.js   86.6 KiB       3  [emitted] [immutable]  vendors~pig
+Entrypoint pig = 0.3c0b2dcb4b032c97b89a.css commons.031644f09d158e118bcd.js vendors~pig.72211514c8daf9d89b99.js pig.68cb67d5e4c91aae7205.css pig.c736e8647a5fd2b830dd.js
+Entrypoint rabbit = 0.3c0b2dcb4b032c97b89a.css commons.031644f09d158e118bcd.js rabbit.bee6e0222d441a44c348.css rabbit.f5cb8f468f2098a164b7.js
+```
+
+
